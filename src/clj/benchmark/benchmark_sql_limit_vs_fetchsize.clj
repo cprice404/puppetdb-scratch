@@ -27,6 +27,9 @@ Beginning benchmark for '%s'
 (defn select-with-limit []
   (execute-statement (build-statement "select * from catalog_resources where type = 'File' LIMIT 1000")))
 
+(defn subselect-with-limit []
+  (execute-statement (build-statement "select a.* from (select * from catalog_resources where type = 'File') a LIMIT 1000")))
+
 (defn select-with-fetch-size []
   (execute-statement
     (let [stmt (build-statement "select * from catalog_resources where type = 'File'")]
@@ -45,8 +48,13 @@ Beginning benchmark for '%s'
     :user "puppet"
     :password "puppet"
     }
+;
+;  (let [stmt (build-statement "SELECT 1 as foo")]
+;    (println (str "Statement default fetch size is " (.getFetchSize stmt))))
+
   (my-bench "no-op select" noop-select)
   (my-bench "select with limit" select-with-limit)
+  (my-bench "subselect with limit" subselect-with-limit)
   (my-bench "dumb select" dumb-select)
   (my-bench "select with fetch size" select-with-fetch-size)
 
