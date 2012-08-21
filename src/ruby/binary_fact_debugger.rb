@@ -55,11 +55,17 @@ end
 def find_smallest_failure(file)
   data = File.read(file)
   start_offset, end_offset = find_first_success(data, 0, data.length, lambda { |x,y| [x, y - 1] } )
+
+  if start_offset == 0 and end_offset == data.length
+    raise RuntimeError, "This binary data passes the checksum, unable to find failure case."
+  end
+
   puts "First successful substring working backwards from end: 0-#{end_offset}"
 
   start_offset, end_offset = find_first_success(data, 0, end_offset + 1, lambda { |x,y| [x + 1, y] })
 
   puts "First successful substring working forwards from start: #{start_offset}-#{end_offset}"
+
 
   puts "Should fail with #{start_offset - 1}-#{end_offset}, trying."
 
