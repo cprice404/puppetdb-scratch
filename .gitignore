@@ -1,3 +1,4 @@
 lib
 .lein*
 *.bunk
+src/binary_data_debugging/bad_binary_data.out
