@@ -7,7 +7,8 @@ ruby_version = RUBY_VERSION.split('.')
 raise "This script must be run in ruby 1.9!" unless (ruby_version[0..1] == ["1", "9"])
 
 
-bytes = [0xe0, 0x8b, 0x84]
+#bytes = [0xe0, 0x8b, 0x84]
+bytes = [0xf5, 0x90, 0x90, 0x90]
 
 
 def readable_hex_bytes(bytes)
@@ -22,7 +23,7 @@ NumPrefixBits = [[1],
                  [7, 2, 2, 2, 2, 2]]
 
 def separated_byte_strings(byte_strings)
-  colors = [:red, :green, :blue, :purple]
+  colors = [:light_red, :light_green, :light_cyan, :light_magenta]
   color_index = 0
 
   prefix_bits = NumPrefixBits[byte_strings.length - 1]
@@ -84,7 +85,7 @@ str = bytes.pack('c*')
 
 # This will trigger the ruby 1.9 code path
 cleaned_19 = Puppet::Util::Puppetdb::CharEncoding.utf8_string(str)
-cleaned_18 = Puppet::Util::Puppetdb::CharEncoding.send(:ruby18_clean_utf8, str)
+cleaned_18 = Puppet::Util::Puppetdb::CharEncoding.send(:ruby18_manually_clean_utf8, str)
 cleaned_18_iconv = Puppet::Util::Puppetdb::CharEncoding.send(:iconv_to_utf8, str)
 
 puts "Ruby 1.9: " + readable_hex_bytes(cleaned_19.unpack("C*")).join(" ")

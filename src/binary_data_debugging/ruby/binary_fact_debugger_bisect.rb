@@ -49,6 +49,9 @@ def find_first_success(data, start_offset, end_offset, next_offsets_fn)
   last_failed_end = nil
   while true
     begin
+      if start_offset == end_offset
+        raise "Agh, something went wrong, I was about to try range '#{start_offset}-#{end_offset}'"
+      end
       puts "Trying #{start_offset}-#{end_offset}"
       submit_data(data, start_offset, end_offset)
       break [start_offset, end_offset, last_failed_start, last_failed_end]
