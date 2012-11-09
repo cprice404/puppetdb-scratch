@@ -11,6 +11,15 @@ unless File.exists?(binary_data_file)
   raise "Unable to find specified file '#{binary_data_file}'"
 end
 
+f = File.new(binary_data_file)
+bytes = []
+f.each_byte do |b|
+  bytes << b
+end
+
+puts "Original bytes: " + bytes.map{ |b| sprintf("0x%02x", b) }.join(" ")
+
+
 bytes = File.read(binary_data_file)
 
 cleaned = Puppet::Util::Puppetdb::CharEncoding.utf8_string(bytes)
@@ -20,4 +29,4 @@ result = []
 #cleaned.each_char { |b| result << "0x#{b.unpack('H*')}" }
 cleaned.each_byte { |b| result << sprintf("0x%02x", b) }
 
-puts result.join(" ")
+puts "Cleaned bytes: " + result.join(" ")

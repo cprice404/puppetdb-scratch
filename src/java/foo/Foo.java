@@ -11,7 +11,10 @@ public class Foo {
 
     public static void main(String[] args) {
         System.out.println("hi");
-        //byte[] mybytes = new byte[] { 0xE2, 0x9B, 0x87 };
-//        byte[]
+        byte[] mybytes = new byte[] { (byte) 0xc2, (byte) 0x7f };
+        for (int i = 0; i < mybytes.length; i++) {
+            System.out.println(mybytes[i]);
+        }
+
     }
 }

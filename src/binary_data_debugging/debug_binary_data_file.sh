@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if test -z "$1"
+then
+  echo "Error: usage: debug_binary_data_file.sh <binary_file_path>"
+  exit 1
+fi
+
 [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
 
 CURRENT_RVM=`rvm current`

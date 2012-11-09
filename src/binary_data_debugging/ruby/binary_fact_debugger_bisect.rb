@@ -7,11 +7,11 @@ $LOAD_PATH << File.join(File.dirname(File.expand_path(__FILE__)), '..', '..', '.
 
 require 'puppet/util/puppetdb'
 
-
-
 Puppet.parse_config
-Puppet[:confdir] = "/home/cprice/work/puppet/test/client/conf"
-Puppet[:vardir] = "/home/cprice/work/puppet/test/client/var"
+Puppet[:certname] = "explosivo"
+Puppet[:confdir] = "/home/cprice/work/puppet/puppet/test/client/conf"
+Puppet[:vardir] = "/home/cprice/work/puppet/puppet/test/client/var"
+
 
 class ThisIsStupid
   include Puppet::Util::Puppetdb
@@ -21,7 +21,7 @@ class ThisIsStupid
   # A `#submit_command` method that doesn't require an `Indirector::Request`
   #  argument.
   def submit_command(key, payload, command, version)
-    bunk_request = BunkRequest.new("cosmicshame.puppetlabs.lan", 8081, key)
+    bunk_request = BunkRequest.new("explosivo", 8081, key)
     # call into the "real" `#submit_command` method in `Puppet::Util::Puppetdb`
     super(bunk_request, payload, command, version)
   end
