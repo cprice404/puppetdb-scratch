@@ -8,9 +8,12 @@ $LOAD_PATH << File.join(File.dirname(File.expand_path(__FILE__)), '..', '..', '.
 require 'puppet/util/puppetdb'
 
 Puppet.parse_config
-Puppet[:certname] = "explosivo"
-Puppet[:confdir] = "/home/cprice/work/puppet/puppet/test/client/conf"
-Puppet[:vardir] = "/home/cprice/work/puppet/puppet/test/client/var"
+Puppet[:certname] = "cosmicshame.puppetlabs.lan"
+#Puppet[:confdir] = "/home/cprice/work/puppet/puppet/test/client/conf"
+#Puppet[:vardir] = "/home/cprice/work/puppet/puppet/test/client/var"
+Puppet[:confdir] = "/home/cprice/work/puppet/test/client/conf"
+Puppet[:vardir] = "/home/cprice/work/puppet/test/client/var"
+
 
 
 class ThisIsStupid
@@ -21,7 +24,7 @@ class ThisIsStupid
   # A `#submit_command` method that doesn't require an `Indirector::Request`
   #  argument.
   def submit_command(key, payload, command, version)
-    bunk_request = BunkRequest.new("explosivo", 8081, key)
+    bunk_request = BunkRequest.new("cosmicshame.puppetlabs.lan", 8081, key)
     # call into the "real" `#submit_command` method in `Puppet::Util::Puppetdb`
     super(bunk_request, payload, command, version)
   end
@@ -70,6 +73,15 @@ def find_smallest_failure(file)
   end_offset = 0
   last_failed_end = data.length
   start_offset = 0
+
+  # First let's just check and make sure the file even fails.
+  begin
+    submit_data(data, start_offset, data.length)
+    raise "It appears that this data can be processed successfully!  Exiting."
+  rescue Puppet::Error => e
+    # We're expecting to get here, so we can ignore the exception and start
+    # debugging.
+  end
 
   # this is pretty ugly and crappy, but it seems to work
 
