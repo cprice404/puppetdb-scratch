@@ -13,11 +13,11 @@
           :password    "puppet"}]
   (let [certnames (map #(format "node%d" (+ % 1)) (range 5000))]
     (sql/with-connection db
-      (doseq [certname certnames]
-;       (println certname (now))
-        (maybe-activate-node! certname (now))
         (dotimes [i 336]
-          (let [timestamp   (now)
+          (doseq [certname certnames]
+            ;       (println certname (now))
+;            (maybe-activate-node! certname (now))
+            (let [timestamp   (now)
                 start-time  (ago (secs (rand-int 10000000)))
                 end-time    (plus start-time (secs 5))]
 
