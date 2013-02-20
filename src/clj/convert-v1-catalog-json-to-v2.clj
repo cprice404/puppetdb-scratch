@@ -3,7 +3,7 @@
             [cheshire.core :as json])
   (:use     [clojure.core.incubator :only [dissoc-in]]))
 
-(let [path "/home/cprice/work/puppetdb/scratch/import_export/import_samples/tmp/puppetdb_bak/catalogs"]
+(let [path "/home/cprice/work/puppet/puppetdb/scratch/import-export/import_test//puppetdb_bak/catalogs"]
   (fs/mkdir (fs/file path "orig"))
   (doseq [catalog-file (fs/glob (fs/file path "*.json"))]
     (let [catalog-filename    (fs/base-name catalog-file)
