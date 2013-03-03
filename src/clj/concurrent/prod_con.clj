@@ -19,6 +19,7 @@
       (java.util.concurrent.LinkedBlockingQueue.)
       (java.util.concurrent.ArrayBlockingQueue. size))))
 
+;; TODO docs
 (def work-complete-sentinel (Object.))
 
 (defn work-queue->seq
@@ -38,27 +39,30 @@
   ([work-fn num-workers]
     (producer work-fn num-workers 0))
   ([work-fn num-workers max-work]
-    (let [queue    (work-queue max-work)
-          workers (doall
-                    (for [i (range num-workers)]
-                      (future
-                        (let [work-count (atom 0)]
-                          (doseq [work (iterator-fn->lazy-seq work-fn)]
-                            (.put queue work)
-                            (swap! work-count inc))
-                          ;; TODO: doc
-                          (.put queue work-complete-sentinel)
-                          @work-count))))]
-      {:queued-work (work-queue->seq queue)
+    (let [queue       (work-queue max-work)
+          workers     (doall (for [i (range num-workers)]
+                        (future
+                          (let [work-count (atom 0)]
+                            (doseq [work (iterator-fn->lazy-seq work-fn)]
+                              (.put queue work)
+                              (swap! work-count inc))
+                            @work-count))))
+          supervisor  (future
+                        ;; TODO: doc
+                        (doseq [worker workers] @worker)
+                        (.put queue work-complete-sentinel))]
+      {:work-queue  queue
        :workers     workers})))
-;
-;(defn consumer
-;  [producer work-fn num-threads max-results]
-;  (let [result-queue (work-queue max-results)
-;        workers      (for [_ (range num-threads)]
-;                        (future (doseq [work (:queued-work producer)]
-;                                  (.put result-queue (work-fn work)))))]
-;    (work-queue-seq result-queue)))
+
+(defn consumer
+  [producer work-fn num-threads max-results]
+  (let [result-queue (work-queue max-results)
+        workers      (for [_ (range num-threads)]
+                        (future
+                          (doseq [work (work-queue->seq(:queue producer))]
+                            (.put result-queue (work-fn work)))
+                          (.put result-queue work-complete-sentinel)))]
+    (work-queue->seq result-queue)))
 ;
 ;(def next-work-id (atom 1))
 ;

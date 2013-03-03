@@ -58,15 +58,19 @@
 (deftest test-producer
   (doseq [num-workers [1 2 5]]
     (testing (format "with %d worker(s)" num-workers)
-      (let [num-work-items          5
-            {:keys [counter iterator-fn
-                    original-work]} (simple-work-stack num-work-items)
-            p                       (producer iterator-fn num-workers)
-            {:keys [workers queued-work]} p]
-          (testing "number of workers matches what we requested"
-            (is (= num-workers (count workers))))
-          (testing "worker completed the correct number of work items"
-            (let [work-completed (apply + (map deref workers))]
-              (is (= num-work-items work-completed))))
-          (testing "work queue contains the correct work items"
-            (is (= (set original-work) (set queued-work))))))))
+    (let [num-work-items                5
+          {:keys [counter iterator-fn
+                  original-work]}       (simple-work-stack num-work-items)
+          p                             (producer iterator-fn num-workers)
+          {:keys [workers work-queue]}  p
+          queued-work                   (work-queue->seq work-queue)]
+      (testing "number of workers matches what we requested"
+        (is (= num-workers (count workers))))
+      (testing "worker completed the correct number of work items"
+        (let [work-completed (apply + (map deref workers))]
+          (is (= num-work-items work-completed))))
+      (testing "work queue contains the correct work items"
+        (is (= (set original-work) (set queued-work))))))))
+
+;(deftest test-consumer
+;  )
