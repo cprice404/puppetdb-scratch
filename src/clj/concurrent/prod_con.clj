@@ -34,33 +34,21 @@
             nil)
           next-item)))))
 
-;(defn work-seq
-;  ([work-fn]
-;    (println "Attempting to get work seq for work-fn")
-;    (work-seq work-fn (work-fn)))
-;  ([work-fn next-work]
-;    (println "Attempting to get work seq for work-fn with next-work:" next-work)
-;    (if-not (nil? next-work)
-;      (cons next-work (lazy-seq work-seq work-fn))
-;      '())))
-;
 (defn producer
-  ([work-fn num-threads]
-    (producer work-fn num-threads 0))
-  ([work-fn num-threads max-work]
+  ([work-fn num-workers]
+    (producer work-fn num-workers 0))
+  ([work-fn num-workers max-work]
     (let [queue    (work-queue max-work)
           workers (doall
-                    (for [i (range num-threads)]
-                      (do
-                        (println "Creating producer future" i)
-                        (future
-                          (let [work-count (atom 0)]
-                            (doseq [work (iterator-fn->lazy-seq work-fn)]
-                              (.put queue work)
-                              (swap! work-count inc))
-                            (.put queue work-complete-sentinel)
-                            @work-count)))))]
-      (println "Done creating producer workers")
+                    (for [i (range num-workers)]
+                      (future
+                        (let [work-count (atom 0)]
+                          (doseq [work (iterator-fn->lazy-seq work-fn)]
+                            (.put queue work)
+                            (swap! work-count inc))
+                          ;; TODO: doc
+                          (.put queue work-complete-sentinel)
+                          @work-count))))]
       {:queued-work (work-queue->seq queue)
        :workers     workers})))
 ;

@@ -1,6 +1,16 @@
 (ns concurrent.test.prod-con
   (:use clojure.test
-        concurrent.prod-con))
+        concurrent.prod-con)
+  (:require [clojure.tools.logging :as log]))
+
+(defn swap-and-return-old-val!
+  [a f & args]
+  (loop []
+    (let [old-value @a
+          new-value (apply f old-value args)]
+      (if (compare-and-set! a old-value new-value)
+        old-value
+        (recur)))))
 
 (defn simple-work-stack
   [size]
@@ -10,8 +20,9 @@
         counter         (atom 0)
         iterator-fn     (fn []
                           (swap! counter inc)
-                          (let [next-item (first @remaining-work)]
-                            (swap! remaining-work next)
+                          (let [old-work  (swap-and-return-old-val! remaining-work next)
+                                next-item (first old-work)]
+;                            (log/info "iterator-fn called (count" @counter "), returning" next-item)
                             next-item))]
     {:original-work   original-work
      :remaining-work  remaining-work
@@ -45,15 +56,17 @@
       (is (= (range 5) queue-seq)))))
 
 (deftest test-producer
-  (testing "with a single worker"
-    (let [{:keys [counter iterator-fn
-                  original-work]} (simple-work-stack 5)
-          p                       (producer iterator-fn 1)
-          {:keys [workers queued-work]} p]
-        (testing "number of workers matches what we requested"
-          (is (= 1 (count workers))))
-        (testing "worker completed the correct number of work items"
-          (let [worker (first workers)]
-            (is (= 5 @worker))))
-        (testing "work queue contains the correct work items"
-          (is (= original-work queued-work))))))
+  (doseq [num-workers [1 2 5]]
+    (testing (format "with %d worker(s)" num-workers)
+      (let [num-work-items          5
+            {:keys [counter iterator-fn
+                    original-work]} (simple-work-stack num-work-items)
+            p                       (producer iterator-fn num-workers)
+            {:keys [workers queued-work]} p]
+          (testing "number of workers matches what we requested"
+            (is (= num-workers (count workers))))
+          (testing "worker completed the correct number of work items"
+            (let [work-completed (apply + (map deref workers))]
+              (is (= num-work-items work-completed))))
+          (testing "work queue contains the correct work items"
+            (is (= (set original-work) (set queued-work))))))))
