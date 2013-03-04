@@ -1,5 +1,6 @@
 (ns concurrent.prod-con
-  (:require [clojure.tools.logging :as log]))
+  (:require [clojure.tools.logging :as log])
+  (:import  [java.util.concurrent BlockingQueue ArrayBlockingQueue LinkedBlockingQueue]))
 
 ;; TODO:  put in general namespace
 (defn iterator-fn->lazy-seq
@@ -23,21 +24,29 @@
         (swap! work-count inc))
       @work-count)))
 
+(defrecord WorkQueue    [queue])
+(defrecord Producer     [workers work-queue])
+(defrecord Consumer     [workers result-queue])
+
 (defn work-queue
   ;; TODO docs
   ([] (work-queue 0))
   ([size]
+   {:pre  [(>= size 0)]
+    :post [(instance? WorkQueue %)]}
    (if (= 0 size)
-      (java.util.concurrent.LinkedBlockingQueue.)
-      (java.util.concurrent.ArrayBlockingQueue. size))))
+      (WorkQueue. (LinkedBlockingQueue.))
+      (WorkQueue. (ArrayBlockingQueue. size)))))
 
 ;; TODO docs
 (def work-complete-sentinel (Object.))
 
 (defn work-queue->seq
   ;; TODO docs
-  [queue]
-  {:pre  [(instance? java.util.concurrent.BlockingQueue queue)]}
+  [{queue :queue :as work-queue}]
+  {:pre  [(instance? WorkQueue work-queue)
+          (instance? BlockingQueue queue)]
+   :post [(seq? %)]}
   (iterator-fn->lazy-seq
     (fn []
       (let [next-item (.take queue)]
@@ -53,7 +62,14 @@
   ([work-fn num-workers]
     (producer work-fn num-workers 0))
   ([work-fn num-workers max-work]
-    (let [queue       (work-queue max-work)
+    {:pre  [(fn? work-fn)
+            (pos? num-workers)
+            (>= max-work 0)]
+     :post [(instance? Producer %)
+            (instance? WorkQueue (:work-queue %))
+            (every? future? (:workers %))]}
+    (let [wq          (work-queue max-work)
+          queue       (:queue wq)
           workers     (doall (for [_ (range num-workers)]
                         (build-worker
                           #(iterator-fn->lazy-seq work-fn)
@@ -62,22 +78,26 @@
                         ;; TODO: doc
                         (doseq [worker workers] @worker)
                         (.put queue work-complete-sentinel))]
-      {:work-queue  queue
-       :workers     workers})))
+      (Producer. workers wq))))
 
 (defn consumer
   ;; TODO: docs preconds
   ([producer work-fn num-workers] (consumer producer work-fn num-workers 0))
-  ([{producer-queue :work-queue :as producer} work-fn num-workers max-results]
-   {:pre  [(instance? java.util.concurrent.BlockingQueue producer-queue)]}
-   (let [result-queue   (work-queue max-results)
+  ([{producer-work-queue :work-queue :as producer} work-fn num-workers max-results]
+   {:pre  [(instance? Producer producer)
+           (instance? WorkQueue producer-work-queue)]
+    :post [(instance? Consumer %)
+           (instance? WorkQueue (:result-queue %))
+           (every? future? (:workers %))]}
+   (let [wq             (work-queue max-results)
+         result-queue   (:queue wq)
+         producer-queue (:queue producer-work-queue)
          workers        (doall (for [_ (range num-workers)]
                            (build-worker
-                             #(work-queue->seq producer-queue)
+                             #(work-queue->seq producer-work-queue)
                              #(.put result-queue (work-fn %)))))
          supervisor     (future
                           ;; TODO: doc
                           (doseq [worker workers] @worker)
                           (.put result-queue work-complete-sentinel))]
-    {:result-queue  result-queue
-     :workers       workers})))
+    (Consumer. workers wq))))

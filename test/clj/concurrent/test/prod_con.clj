@@ -48,11 +48,12 @@
       (is (= 6 @counter)))))
 
 (deftest test-work-queue->seq
-  (let [queue (work-queue)]
+  (let [wq    (work-queue)
+        queue (:queue wq)]
     (doseq [i (range 5)]
       (.put queue i))
     (.put queue work-complete-sentinel)
-    (let [queue-seq  (work-queue->seq queue)]
+    (let [queue-seq  (work-queue->seq wq)]
       (is (= (range 5) queue-seq)))))
 
 (deftest test-producer
