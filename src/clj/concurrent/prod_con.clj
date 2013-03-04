@@ -24,12 +24,13 @@
         (swap! work-count inc))
       @work-count)))
 
-(defprotocol MinimalBlockingQueue
-  (put  [this item] "TODO docs")
-  (take [this]      "TODO docs"))
+(gen-interface
+  :name    concurrent.prod-con.MinimalBlockingQueue
+  :methods [[take []       Object]
+            [put  [Object] void]])
 
 (deftype WorkQueue [queue]
-  MinimalBlockingQueue
+  concurrent.prod-con.MinimalBlockingQueue
   (put [this item]
     (.put queue item))
   (take [this]
