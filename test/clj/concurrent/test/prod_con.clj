@@ -56,21 +56,37 @@
       (is (= (range 5) queue-seq)))))
 
 (deftest test-producer
-  (doseq [num-workers [1 2 5]]
-    (testing (format "with %d worker(s)" num-workers)
-    (let [num-work-items                5
-          {:keys [counter iterator-fn
-                  original-work]}       (simple-work-stack num-work-items)
-          p                             (producer iterator-fn num-workers)
-          {:keys [workers work-queue]}  p
-          queued-work                   (work-queue->seq work-queue)]
-      (testing "number of workers matches what we requested"
-        (is (= num-workers (count workers))))
-      (testing "worker completed the correct number of work items"
-        (let [work-completed (apply + (map deref workers))]
-          (is (= num-work-items work-completed))))
-      (testing "work queue contains the correct work items"
-        (is (= (set original-work) (set queued-work))))))))
+  (doseq [num-workers [1 2 5]
+          max-work    [0 2 10]]
+    (testing (format "with %d worker(s) and %d max work items" num-workers max-work)
+      (let [num-work-items                5
+            {:keys [counter iterator-fn
+                    original-work]}       (simple-work-stack num-work-items)
+            p                             (producer iterator-fn num-workers max-work)
+            {:keys [workers work-queue]}  p
+            queued-work                   (work-queue->seq work-queue)]
+        (testing "number of workers matches what we requested"
+          (is (= num-workers (count workers))))
+        (testing "work queue contains the correct work items"
+          (is (= (set original-work) (set queued-work))))
+        (testing "workers completed the correct number of work items"
+          (let [work-completed (apply + (map deref workers))]
+            (is (= num-work-items work-completed))))))))
 
-;(deftest test-consumer
-;  )
+(deftest test-consumer
+  (doseq [num-workers [1 2 5]
+          max-work    [0 2 10]]
+    (testing (format "with %d worker(s) and %d max work items" num-workers max-work)
+      (let [num-work-items                    5
+            {:keys [counter iterator-fn
+                    original-work]}           (simple-work-stack num-work-items)
+            p                                 (producer iterator-fn num-workers max-work)
+            {:keys [workers result-queue]}    (consumer p inc num-workers max-work)
+            queued-results                    (work-queue->seq result-queue)]
+        (testing "number of workers matches what we requested"
+          (is (= num-workers (count workers))))
+        (testing "result queue contains the correct results"
+          (is (= (set (map inc original-work)) (set queued-results))))
+        (testing "workers completed the correct number of work items"
+          (let [work-completed (apply + (map deref workers))]
+            (is (= num-work-items work-completed))))))))

@@ -1,5 +1,7 @@
-(ns concurrent.prod-con)
+(ns concurrent.prod-con
+  (:require [clojure.tools.logging :as log]))
 
+;; TODO:  put in general namespace
 (defn iterator-fn->lazy-seq
   ;; TODO docs
   [f]
@@ -15,7 +17,7 @@
   ;; TODO docs
   ([] (work-queue 0))
   ([size]
-    (if (= 0 size)
+   (if (= 0 size)
       (java.util.concurrent.LinkedBlockingQueue.)
       (java.util.concurrent.ArrayBlockingQueue. size))))
 
@@ -25,6 +27,7 @@
 (defn work-queue->seq
   ;; TODO docs
   [queue]
+  {:pre  [(instance? java.util.concurrent.BlockingQueue queue)]}
   (iterator-fn->lazy-seq
     (fn []
       (let [next-item (.take queue)]
@@ -36,11 +39,12 @@
           next-item)))))
 
 (defn producer
+  ;; TODO: docs preconds
   ([work-fn num-workers]
     (producer work-fn num-workers 0))
   ([work-fn num-workers max-work]
     (let [queue       (work-queue max-work)
-          workers     (doall (for [i (range num-workers)]
+          workers     (doall (for [_ (range num-workers)]
                         (future
                           (let [work-count (atom 0)]
                             (doseq [work (iterator-fn->lazy-seq work-fn)]
@@ -55,47 +59,22 @@
        :workers     workers})))
 
 (defn consumer
-  [producer work-fn num-threads max-results]
-  (let [result-queue (work-queue max-results)
-        workers      (for [_ (range num-threads)]
-                        (future
-                          (doseq [work (work-queue->seq(:queue producer))]
-                            (.put result-queue (work-fn work)))
-                          (.put result-queue work-complete-sentinel)))]
-    (work-queue->seq result-queue)))
-;
-;(def next-work-id (atom 1))
-;
-;(defn create-work
-;  []
-;  (println "create-work called")
-;  (Thread/sleep 200)
-;  (println "create-work: back from sleep")
-;  (let [_    (println "current work id" @next-work-id)
-;        work (swap! next-work-id inc)
-;        _    (println "got next  work id" work)]
-;    (println "create-work about to print thread info")
-;    (println "current thread:" (Thread/currentThread))
-;    (println "current thread id:" (.getId (Thread/currentThread)))
-;    (println "Produced work"  work " on thread " (.getId (Thread/currentThread)))
-;    work))
-;
-;(defn do-work
-;  [work]
-;  (println "Doing work:" work "  on thread " (.getId (Thread/currentThread))))
-;
-;
-;(defn tryit
-;  []
-;  (let [prod    (producer create-work 5 20)
-;        _       (println "Created producer")
-;;        results (consumer prod do-work 10 20)
-;        _       (println "Created consumer")]
-;    (println "Main driver about to start trying to retrieve results")
-;;    (doseq [result results]
-;;      (println "Main driver: got result: " result))))
-;    (doseq [worker (:workers prod)]
-;      (println "Waiting for worker to finish")
-;      (println "Worker finished:" @worker))
-;  )
-;  (println "Done."))
+  ;; TODO: docs preconds
+  ([producer work-fn num-workers] (consumer producer work-fn num-workers 0))
+  ([{producer-queue :work-queue :as producer} work-fn num-workers max-results]
+   {:pre  [(instance? java.util.concurrent.BlockingQueue producer-queue)]}
+   (let [result-queue   (work-queue max-results)
+         workers        (doall (for [_ (range num-workers)]
+                          (future
+                            (let [work-count  (atom 0)
+                                  work-seq    (work-queue->seq producer-queue)]
+                              (doseq [work work-seq]
+                                (.put result-queue (work-fn work))
+                                (swap! work-count inc))
+                              @work-count))))
+       supervisor     (future
+                        ;; TODO: doc
+                        (doseq [worker workers] @worker)
+                        (.put result-queue work-complete-sentinel))]
+    {:result-queue  result-queue
+     :workers       workers})))
