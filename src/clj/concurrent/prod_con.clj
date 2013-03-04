@@ -13,6 +13,16 @@
         '()
         (cons next-item (iterator-fn->lazy-seq f))))))
 
+(defn- build-worker
+  ;; TODO docs
+  [work-seq-fn enqueue-fn]
+  (future
+    (let [work-count (atom 0)]
+      (doseq [work (work-seq-fn)]
+        (enqueue-fn work)
+        (swap! work-count inc))
+      @work-count)))
+
 (defn work-queue
   ;; TODO docs
   ([] (work-queue 0))
@@ -45,12 +55,9 @@
   ([work-fn num-workers max-work]
     (let [queue       (work-queue max-work)
           workers     (doall (for [_ (range num-workers)]
-                        (future
-                          (let [work-count (atom 0)]
-                            (doseq [work (iterator-fn->lazy-seq work-fn)]
-                              (.put queue work)
-                              (swap! work-count inc))
-                            @work-count))))
+                        (build-worker
+                          #(iterator-fn->lazy-seq work-fn)
+                          #(.put queue %))))
           supervisor  (future
                         ;; TODO: doc
                         (doseq [worker workers] @worker)
@@ -65,16 +72,12 @@
    {:pre  [(instance? java.util.concurrent.BlockingQueue producer-queue)]}
    (let [result-queue   (work-queue max-results)
          workers        (doall (for [_ (range num-workers)]
-                          (future
-                            (let [work-count  (atom 0)
-                                  work-seq    (work-queue->seq producer-queue)]
-                              (doseq [work work-seq]
-                                (.put result-queue (work-fn work))
-                                (swap! work-count inc))
-                              @work-count))))
-       supervisor     (future
-                        ;; TODO: doc
-                        (doseq [worker workers] @worker)
-                        (.put result-queue work-complete-sentinel))]
+                           (build-worker
+                             #(work-queue->seq producer-queue)
+                             #(.put result-queue (work-fn %)))))
+         supervisor     (future
+                          ;; TODO: doc
+                          (doseq [worker workers] @worker)
+                          (.put result-queue work-complete-sentinel))]
     {:result-queue  result-queue
      :workers       workers})))
