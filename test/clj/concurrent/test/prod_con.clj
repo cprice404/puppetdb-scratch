@@ -41,19 +41,18 @@
       (is (= 0 (first iterator-seq)))
       (is (= 1 @counter)))
     (testing "iterator-fn is called one more time if we take the first two items from the seq"
-      (is (= '(0 1) (take 2 iterator-seq)))
+      (is (= '(0 1) (clojure.core/take 2 iterator-seq)))
       (is (= 2 @counter)))
     (testing "iterator-fn is called once for each item in the seq, plus once for the final nil if we walk the whole seq"
       (doseq [i iterator-seq] i)
       (is (= 6 @counter)))))
 
 (deftest test-work-queue->seq
-  (let [wq    (work-queue)
-        queue (:queue wq)]
+  (let [queue (work-queue)]
     (doseq [i (range 5)]
       (.put queue i))
     (.put queue work-complete-sentinel)
-    (let [queue-seq  (work-queue->seq wq)]
+    (let [queue-seq  (work-queue->seq queue)]
       (is (= (range 5) queue-seq)))))
 
 (deftest test-producer

@@ -24,7 +24,17 @@
         (swap! work-count inc))
       @work-count)))
 
-(defrecord WorkQueue    [queue])
+(defprotocol MinimalBlockingQueue
+  (put  [this item] "TODO docs")
+  (take [this]      "TODO docs"))
+
+(deftype WorkQueue [queue]
+  MinimalBlockingQueue
+  (put [this item]
+    (.put queue item))
+  (take [this]
+    (.take queue)))
+
 (defrecord Producer     [workers work-queue])
 (defrecord Consumer     [workers result-queue])
 
@@ -43,9 +53,8 @@
 
 (defn work-queue->seq
   ;; TODO docs
-  [{queue :queue :as work-queue}]
-  {:pre  [(instance? WorkQueue work-queue)
-          (instance? BlockingQueue queue)]
+  [queue]
+  {:pre  [(instance? WorkQueue queue)]
    :post [(seq? %)]}
   (iterator-fn->lazy-seq
     (fn []
@@ -68,8 +77,7 @@
      :post [(instance? Producer %)
             (instance? WorkQueue (:work-queue %))
             (every? future? (:workers %))]}
-    (let [wq          (work-queue max-work)
-          queue       (:queue wq)
+    (let [queue       (work-queue max-work)
           workers     (doall (for [_ (range num-workers)]
                         (build-worker
                           #(iterator-fn->lazy-seq work-fn)
@@ -78,26 +86,24 @@
                         ;; TODO: doc
                         (doseq [worker workers] @worker)
                         (.put queue work-complete-sentinel))]
-      (Producer. workers wq))))
+      (Producer. workers queue))))
 
 (defn consumer
   ;; TODO: docs preconds
   ([producer work-fn num-workers] (consumer producer work-fn num-workers 0))
-  ([{producer-work-queue :work-queue :as producer} work-fn num-workers max-results]
+  ([{producer-queue :work-queue :as producer} work-fn num-workers max-results]
    {:pre  [(instance? Producer producer)
-           (instance? WorkQueue producer-work-queue)]
+           (instance? WorkQueue producer-queue)]
     :post [(instance? Consumer %)
            (instance? WorkQueue (:result-queue %))
            (every? future? (:workers %))]}
-   (let [wq             (work-queue max-results)
-         result-queue   (:queue wq)
-         producer-queue (:queue producer-work-queue)
+   (let [result-queue   (work-queue max-results)
          workers        (doall (for [_ (range num-workers)]
                            (build-worker
-                             #(work-queue->seq producer-work-queue)
+                             #(work-queue->seq producer-queue)
                              #(.put result-queue (work-fn %)))))
          supervisor     (future
                           ;; TODO: doc
                           (doseq [worker workers] @worker)
                           (.put result-queue work-complete-sentinel))]
-    (Consumer. workers wq))))
+    (Consumer. workers result-queue))))
